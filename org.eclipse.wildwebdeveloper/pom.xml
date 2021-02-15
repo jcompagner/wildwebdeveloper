@@ -61,8 +61,7 @@
 							<goal>wget</goal>
 						</goals>
 						<configuration>
-							<!-- Using 2.1.1 for now because if a bug in diagnostic, that's alrady fixed in master, for 2.1.14 -->
-							<url>https://marketplace.visualstudio.com/_apis/public/gallery/publishers/dbaeumer/vsextensions/vscode-eslint/2.1.1/vspackage</url>
+							<url>https://marketplace.visualstudio.com/_apis/public/gallery/publishers/dbaeumer/vsextensions/vscode-eslint/2.1.14/vspackage</url>
 							<outputFileName>vscode-eslint-ls.zip</outputFileName>
 							<unpack>true</unpack>
 							<outputDirectory>${project.build.directory}/vscode-eslint-ls</outputDirectory>
@@ -75,7 +74,8 @@
 							<goal>wget</goal>
 						</goals>
 						<configuration>
-							<url>https://raw.githubusercontent.com/microsoft/vscode-eslint/release/2.1.13/server/package.json</url>
+							<skipCache>true</skipCache>
+							<url>https://raw.githubusercontent.com/microsoft/vscode-eslint/release/2.1.14/server/package.json</url>
 							<outputDirectory>${project.build.directory}/vscode-eslint-ls/extension/server</outputDirectory>
 						</configuration>
 					</execution>
