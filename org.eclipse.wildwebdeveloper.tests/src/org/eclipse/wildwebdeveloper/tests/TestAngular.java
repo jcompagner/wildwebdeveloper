@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2022 Red Hat Inc. and others.
+ * Copyright (c) 2019, 2023 Red Hat Inc. and others.
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -28,17 +28,12 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
-import org.eclipse.ui.IViewReference;
-import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.ide.IDE;
-import org.eclipse.ui.intro.IIntroPart;
-import org.eclipse.ui.preferences.ScopedPreferenceStore;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
 import org.eclipse.wildwebdeveloper.embedder.node.NodeJSManager;
 import org.junit.jupiter.api.AfterAll;
@@ -52,24 +47,12 @@ public class TestAngular {
 
 	@BeforeAll
 	public static void setUp() throws Exception {
-		// The following is a copy of new AllCleanRule().afterEach(null);`
-		// excluding a call to clean the projects - we need to share the project
-		// between the existing testcases
-		//
-		IIntroPart intro = PlatformUI.getWorkbench().getIntroManager().getIntro();
-		if (intro != null) {
-			PlatformUI.getWorkbench().getIntroManager().closeIntro(intro);
-		}
-		IWorkbenchPage activePage = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-		for (IViewReference ref : activePage.getViewReferences()) {
-			activePage.hideView(ref);
-		}
-		enableLogging();
-		// End of note
+		AllCleanRule.closeIntro();
+		AllCleanRule.enableLogging();
 
 		project = Utils.provisionTestProject("angular-app");
-		ProcessBuilder builder = new ProcessBuilder(NodeJSManager.getNpmLocation().getAbsolutePath(), "install",
-				"--no-bin-links", "--ignore-scripts").directory(project.getLocation().toFile());
+		ProcessBuilder builder = NodeJSManager.prepareNPMProcessBuilder("install", "--no-bin-links", "--ignore-scripts")
+				.directory(project.getLocation().toFile());
 		Process process = builder.start();
 		System.out.println(builder.command().toString());
 		String result = new BufferedReader(new InputStreamReader(process.getErrorStream())).lines()
@@ -90,7 +73,7 @@ public class TestAngular {
 
 	@BeforeEach
 	public void setUpTestCase() {
-		enableLogging();
+		AllCleanRule.enableLogging();
 	}
 
 	@AfterAll
@@ -98,20 +81,8 @@ public class TestAngular {
 		new AllCleanRule().afterEach(null);
 	}
 
-	private static void enableLogging() {
-		ScopedPreferenceStore prefs = new ScopedPreferenceStore(InstanceScope.INSTANCE, "org.eclipse.lsp4e");
-		prefs.putValue("org.eclipse.wildwebdeveloper.angular.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.jsts.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.css.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.html.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.json.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.xml.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.yaml.file.logging.enabled", Boolean.toString(true));
-		prefs.putValue("org.eclipse.wildwebdeveloper.eslint.file.logging.enabled", Boolean.toString(true));
-	}
-
 	@Test
-	public void testAngularTs() throws Exception {
+	void testAngularTs() throws Exception {
 		IFile appComponentFile = appFolder.getFile("app.component.ts");
 		TextEditor editor = (TextEditor) IDE
 				.openEditor(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(), appComponentFile);
@@ -137,7 +108,7 @@ public class TestAngular {
 	}
 
 	@Test
-	public void testAngularHtml() throws Exception {
+	void testAngularHtml() throws Exception {
 		TextEditor editor = (TextEditor) IDE.openEditor(
 				PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(),
 				appFolder.getFile("app.componentWithHtml.ts"));

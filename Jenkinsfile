@@ -2,6 +2,7 @@ pipeline {
 	options {
 		timeout(time: 2, unit: 'HOURS')
 		buildDiscarder(logRotator(numToKeepStr:'10'))
+		disableConcurrentBuilds(abortPrevious: true)
 	}
   agent {
     kubernetes {
@@ -13,7 +14,7 @@ kind: Pod
 spec:
   containers:
   - name: container
-    image: docker.io/mickaelistria/fedora-gtk3-mutter-java-node:java-17
+    image: docker.io/akurtakov/fedora-gtk3-mutter-java-node:java-21-node-20
     imagePullPolicy: Always
     tty: true
     command: [ "uid_entrypoint", "cat" ]
@@ -27,12 +28,26 @@ spec:
   - name: jnlp
     image: 'eclipsecbi/jenkins-jnlp-agent'
     volumeMounts:
-    - mountPath: /home/jenkins/.ssh
-      name: volume-known-hosts
+    - name: volume-known-hosts
+      mountPath: /home/jenkins/.ssh
+    - name: settings-xml
+      mountPath: /home/jenkins/.m2/settings.xml
+      subPath: settings.xml
+      readOnly: true
+    - name: m2-repo
+      mountPath: /home/jenkins/.m2/repository
   volumes:
-  - configMap:
+  - name: volume-known-hosts
+    configMap:
       name: known-hosts
-    name: volume-known-hosts
+  - name: settings-xml
+    secret:
+      secretName: m2-secret-dir
+      items:
+      - key: settings.xml
+        path: settings.xml
+  - name: m2-repo
+    emptyDir: {}
 """
     }
   }
@@ -56,9 +71,11 @@ spec:
 		stage('Build') {
 			steps {
 				container('container') {
-					withCredentials([string(credentialsId: "${GITHUB_API_CREDENTIALS_ID}", variable: 'GITHUB_API_TOKEN')]) {
-						wrap([$class: 'Xvnc', useXauthority: true]) {
-							sh 'mvn clean verify -B -Dtycho.disableP2Mirrors=true -Ddownload.cache.skip=true -Dmaven.test.error.ignore=true -Dmaven.test.failure.ignore=true -PpackAndSign -Dmaven.repo.local=$WORKSPACE/.m2/repository -Dgithub.api.token="${GITHUB_API_TOKEN}"'
+					withCredentials([file(credentialsId: 'secret-subkeys.asc', variable: 'KEYRING'), string(credentialsId: 'gpg-passphrase', variable: 'KEYRING_PASSPHRASE')]) {
+						withCredentials([string(credentialsId: "${GITHUB_API_CREDENTIALS_ID}", variable: 'GITHUB_API_TOKEN')]) {
+							wrap([$class: 'Xvnc', useXauthority: true]) {
+								sh '''mvn clean verify -B -fae -Ddownload.cache.skip=true -Dmaven.test.error.ignore=true -Dmaven.test.failure.ignore=true -Psign -Dmaven.repo.local=$WORKSPACE/.m2/repository -Dgithub.api.token="${GITHUB_API_TOKEN}" -Dgpg.passphrase="${KEYRING_PASSPHRASE}" -Dtycho.pgp.signer.bc.secretKeys="${KEYRING}" '''
+							}
 						}
 					}
 				}
@@ -80,9 +97,6 @@ spec:
 						ssh genie.wildwebdeveloper@projects-storage.eclipse.org rm -rf /home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots
 						ssh genie.wildwebdeveloper@projects-storage.eclipse.org mkdir -p /home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots
 						scp -r repository/target/repository/* genie.wildwebdeveloper@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots
-						ssh genie.wildwebdeveloper@projects-storage.eclipse.org mkdir -p /home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots/IDEs
-						scp -r repository/target/products/*.zip genie.wildwebdeveloper@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots/IDEs
-						scp -r repository/target/products/*.tar.gz genie.wildwebdeveloper@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/wildwebdeveloper/snapshots/IDEs
 					'''
 				}
 			}

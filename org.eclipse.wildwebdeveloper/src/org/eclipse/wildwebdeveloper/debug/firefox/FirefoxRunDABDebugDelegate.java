@@ -20,10 +20,10 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -79,8 +79,6 @@ public class FirefoxRunDABDebugDelegate extends AbstractHTMLDebugDelegate {
 		String url = configuration.getAttribute(ChromeRunDAPDebugDelegate.URL, "");
 		if (!url.isEmpty()) {
 			param.put(ChromeRunDAPDebugDelegate.URL, url);
-			File projectDirectory = new File(VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(configuration.getAttribute(DebugPlugin.ATTR_WORKING_DIRECTORY, "")));
-			param.put("webRoot", projectDirectory.getAbsolutePath());
 		} else {
 			param.put(FILE, VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(configuration.getAttribute(LaunchConstants.PROGRAM, "No program path set").trim())); //$NON-NLS-1$
 		}
@@ -103,8 +101,8 @@ public class FirefoxRunDABDebugDelegate extends AbstractHTMLDebugDelegate {
 					.getResource("/node_modules/firefox-debugadapter/adapter.bundle.js"));
 			return new File(fileURL.toURI());
 		} catch (IOException | URISyntaxException e) {
-			IStatus errorStatus = new Status(IStatus.ERROR, Activator.PLUGIN_ID, e.getMessage(), e);
-			Activator.getDefault().getLog().log(errorStatus);
+			IStatus errorStatus = Status.error(e.getMessage(), e);
+			ILog.get().log(errorStatus);
 			Display.getDefault().asyncExec(() -> ErrorDialog.openError(Display.getDefault().getActiveShell(),
 					"Debug error", e.getMessage(), errorStatus)); //$NON-NLS-1$
 		}
@@ -120,7 +118,7 @@ public class FirefoxRunDABDebugDelegate extends AbstractHTMLDebugDelegate {
 	
 	@SuppressWarnings("restriction")
 	static String findFirefoxLocation(ILaunchConfiguration configuration) {
-		List<IBrowserDescriptor> runtimes = BrowserManager.getInstance().getWebBrowsers().stream().filter(FirefoxRunDABDebugDelegate::isFirefox).collect(Collectors.toList());
+		List<IBrowserDescriptor> runtimes = BrowserManager.getInstance().getWebBrowsers().stream().filter(FirefoxRunDABDebugDelegate::isFirefox).toList();
 		for (IBrowserDescriptor browser : runtimes) {
 			if (browser.getLocation() != null) {
 				String location = browser.getLocation();

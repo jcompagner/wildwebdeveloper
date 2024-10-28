@@ -2,5 +2,5 @@ target/
 bin/
 language-servers/
 node_modules/
-package.json
+js-debug/
 package-lock.json
